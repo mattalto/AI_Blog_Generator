@@ -4,7 +4,12 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
+from django.conf import settings
 import json
+from pytube import YouTube
+import os
+import assemblyai as aai
+import openai
 
 # Create your views here.
 
@@ -22,18 +27,70 @@ def generate_blog(request):
             # Store the value from the YouTube link
             data = json.loads(request.body) # json.loads converts the JSON value into a Python dictionary
             youtube_link = data['link']
-            return JsonResponse({'content': youtube_link})
         except (KeyError, json.JSONDecodeError): # This means that something went wrong with the data from the JSON 
             return JsonResponse({'error': 'Invalid data sent'}, status = 400)
         
-            # TODO:
-            # Get YouTube title
-            # Get YouoTube transcript
-            # Use OpenAI to generate the blog
-            # Save the blog article to our database
-            # Return the blog article as a response
+        # Get YouTube title using PyTube
+        title = youtube_title(youtube_link)
+
+        # Get YouTube transcript using Assembly AI
+        transcription = get_transcription(youtube_link)
+        if not transcription:
+            return JsonResponse({'error': "Unable to get transcript"}, status = 500)
+        
+        # Use OpenAI to generate the blog
+        blog_content = generate_blog_from_transcription(transcription)
+        if not blog_content:
+            return JsonResponse({'error': "Failed to generate blog article"}, status = 500)
+
+        # Save the blog article to our database
+
+
+        # Return the blog article as a response
+        return JsonResponse({'content': blog_content})
     else:
         return JsonResponse({'error': 'Invalid request method'}, status = 405)
+
+def youtube_title(link):
+    youtube = YouTube(link)
+    title = youtube.title
+    return title
+
+def download_audio(link):
+    youtube = YouTube(link)
+    video = youtube.streams.filter(only_audio = True).first() # Retrieves audio only form the first stream
+    out_file = video.download(output_path = settings.MEDIA_ROOT)
+    base, ext = os.path.splitext(out_file) # This saves the media file that we specified in the out_file
+    new_file = base + '.mp3' # take the name of the file and append .mp3 to the end of it
+    os.rename(out_file, new_file)
+    return new_file
+
+def get_transcription(link):
+    audio_file = download_audio(link)
+    # Set API key
+    aai.settings.api_key = 'API_KEY_GOES_HERE'
+
+    # Use AssemblyAI to retrieve the transcript of our audio file
+    transcriber = aai.Transcriber()
+    transcript = transcriber.transcribe(audio_file)
+
+    return transcriber.text
+    
+def generate_blog_from_transcription(transcription):
+    # define our OpenAI API key
+    openai.api_key = 'API_KEY_GOES_HERE'
+
+    # Tell OpenAI what to do with the transcript
+    prompt= f"Based on the following transcript from a YouTube video, please write a comprehensive blog article, and write it based on the transcript, but do not make it look like a YouTube video, make it look like a professionally written blog article:\n\n{transcription}\n\nArticle:"
+
+    # Make an API call to OpenAI's completion endpoint
+    response = openai.completions.create(
+        model = "text-davinci-003",
+        prompt = prompt,
+        max_tokens = 1000
+    )
+    generated_content = response.choices[0].text.strip() # get the first response and only get the text and strip the whitespace
+    return generated_content
 
 def user_login(request):
     if request.method == 'POST':
