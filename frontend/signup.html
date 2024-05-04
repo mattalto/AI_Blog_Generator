@@ -29,12 +29,13 @@
                 <!--Since POSTing is dangerous this csrf token will protect against cross site request forgeries-->
                 <!--Prevents a user's browser from being tricked by an attacking site to log into a site with someone else's credentials-->
                 {% csrf_token %}
+
                 {% if error_message %}
-                <div align="center" style="color: red">
-                    <h2>
-                        {{ error_message }}
-                    </h2>
-                </div>
+                    <div align="center" style="color: red">
+                        <h2>
+                            {{ error_message }}
+                        </h2>
+                    </div>
                 {% endif %}
 
                 <h2 class="text-xl font-semibold">Signup</h2>
