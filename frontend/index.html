@@ -105,7 +105,57 @@
     </footer>
 
     <script>
+        // Add an event listener on the Generate button, and make it asynchronous
+        document.getElementById('generateBlogBtn').addEventListener('click', async () => {
 
+            // Store the link to the YouTube video
+            const youtubeLink = document.getElementById('youtubeLink').value;
+            // Store the loading animation
+            const loadingIndicator = document.getElementById('loading');
+            // Store the generated blog article
+            const blogContent = document.getElementById('blogContent');
+
+            if(youtubeLink) {
+                // First, display the loading circle to the user to let them know their blog is generating
+                document.getElementById('loading-circle').style.display = 'block';
+                // Remove the 'hidden' class from the loading animation
+                loadingIndicator.classList.remove('hidden');
+                // If there is any text already occupying the blog content field, remove it
+                blogContent.innerHTML = '';
+
+                // Define the endpoint in which we are sending the value of the YouTube link to
+                const endpointUrl = '/generate-blog';
+
+                // Try to submit a POST of the YouTube link to the defined endpoint 
+                try {
+                    const response = await fetch(endpointUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ link: youtubeLink }) // This is the value from the link that's actually being sent 
+                    });
+
+                    // Store the AI's generated response (the blog)
+                    const data = await response.json();
+                    // Take that data and display it in the blog content's inner HTML
+                    blogContent.innerHTML = data.content;
+                    // Hide the loading animation again
+                    loadingIndicator.classList.add('hidden');
+
+                } catch(error) {
+                    console.error("Error occured:", error);
+                    alert("Something went wrong with your request. Please try again later.");
+                    // Don't forget to still hide the loading animation
+                    loadingIndicator.classList.add('hidden');
+                }
+                // Remove the loading animation
+                document.getElementById('loading-circle').style.display = 'none';
+            } else {
+                // If we get here, the link the user submitted was not valid
+                alert("Please submit a valid YouTube link.");
+            }
+        }) 
     </script>
 </body>
 </html>

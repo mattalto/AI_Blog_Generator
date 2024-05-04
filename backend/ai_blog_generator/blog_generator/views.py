@@ -2,6 +2,9 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
 
 # Create your views here.
 
@@ -10,6 +13,27 @@ from django.contrib.auth.decorators import login_required
 def index(request):
     # Render the home page for the user
     return render(request, 'index.html')
+
+@csrf_exempt # Since the data from this POST is coming from an external site, we don't have to worry about securing it like we did with the user's credentials
+def generate_blog(request):
+    if request.method == 'POST':
+        # Extract the YouTube link from the received JSON
+        try:
+            # Store the value from the YouTube link
+            data = json.loads(request.body) # json.loads converts the JSON value into a Python dictionary
+            youtube_link = data['link']
+            return JsonResponse({'content': youtube_link})
+        except (KeyError, json.JSONDecodeError): # This means that something went wrong with the data from the JSON 
+            return JsonResponse({'error': 'Invalid data sent'}, status = 400)
+        
+            # TODO:
+            # Get YouTube title
+            # Get YouoTube transcript
+            # Use OpenAI to generate the blog
+            # Save the blog article to our database
+            # Return the blog article as a response
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status = 405)
 
 def user_login(request):
     if request.method == 'POST':
